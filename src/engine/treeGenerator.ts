@@ -1149,9 +1149,9 @@ export function buildTreeSceneAsset(params: TreeParams): {
       0.55,
       1.6
     );
-    // Fixed planting-site root spacing derived from mature species dimensions (invariant across year, height, spread)
+    // Planting-site root spacing derived from mature species dimensions × Spread control (invariant across year and height)
     const matureRefH = Math.max(12.0, profile.defaultHeightM);
-    const fixedSpacing = Math.max(4.8, matureRefH * 0.52);
+    const fixedSpacing = Math.max(4.8, matureRefH * 0.52) * params.foliageSpread;
 
     // Center hero tree
     const heroTree = buildSingleTree(
@@ -1208,9 +1208,11 @@ export function buildTreeSceneAsset(params: TreeParams): {
   } else {
     const ringCount = 6;
     const heightMultipliers = [1.05, 0.78, 1.18, 0.86, 0.72, 0.96, 1.12];
-    // Fixed planting-site root spacing derived from mature species dimensions (invariant across year, height, spread)
+    // Planting-site root spacing derived from mature species dimensions × Spread control (invariant across year and height)
     const matureRefH = Math.max(6.5, profile.defaultHeightM);
-    const fixedSpacing = Math.max(4.5, matureRefH * 0.56 * Math.max(0.85, profile.branchSpread));
+    const fixedSpacing =
+      Math.max(4.5, matureRefH * 0.56 * Math.max(0.85, profile.branchSpread)) *
+      params.foliageSpread;
 
     const centerTree = buildSingleTree(params, profile, 0, heightMultipliers[0], 0, 'Variant_01_Hero');
     root.add(centerTree);

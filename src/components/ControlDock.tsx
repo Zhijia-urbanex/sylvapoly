@@ -902,7 +902,7 @@ export function ControlDock({
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-xs">
                 <label htmlFor="spread-slider" className={`font-medium ${mutedLabel}`}>
-                  Spread
+                  {params.viewMode === ViewMode.Specimen ? 'Spread' : 'Spread / Spacing'}
                 </label>
                 <span className="font-mono-num font-semibold">
                   {params.foliageSpread.toFixed(2)}×
