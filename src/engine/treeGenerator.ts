@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createRng, hashString, randRange } from './prng';
-import { resolveSpecies } from './speciesParser';
+import { CURATED_SPECIES, computeHeightForYear, resolveSpecies } from './speciesParser';
 import {
   DetailLevel,
   MeshStats,
@@ -1016,7 +1016,7 @@ export function buildSingleTree(
   variantHueShift = 0,
   treeName = 'LowPolyTree'
 ): THREE.Group {
-  const effectiveSeed = (params.seed ^ hashString(params.speciesQuery) ^ (seedOffset * 2654435761)) >>> 0;
+  const effectiveSeed = (params.seed ^ hashString(profile.displayName) ^ (seedOffset * 2654435761)) >>> 0;
   const rng = createRng(effectiveSeed);
   const palette = getActivePalette(profile, params);
 
@@ -1077,17 +1077,14 @@ export function buildSingleTree(
     }
   });
 
+  // Ground bottom pivot strictly at y = 0 while preserving trunk root origin at (0, 0)
   group.updateMatrixWorld(true);
   const finalBox = new THREE.Box3().setFromObject(group);
-  const centerX = (finalBox.min.x + finalBox.max.x) * 0.5;
-  const centerZ = (finalBox.min.z + finalBox.max.z) * 0.5;
   const minY = finalBox.min.y;
 
   group.traverse((obj) => {
     if (obj instanceof THREE.Mesh) {
-      obj.position.x -= centerX;
       obj.position.y -= minY;
-      obj.position.z -= centerZ;
     }
   });
 
@@ -1100,6 +1097,7 @@ export function buildSingleTree(
 export function buildTreeSceneAsset(params: TreeParams): {
   root: THREE.Group;
   profile: SpeciesProfile;
+  mixProfiles: SpeciesProfile[];
   stats: MeshStats;
   treeAnchors: Array<{ x: number; z: number; radius: number }>;
 } {
@@ -1108,21 +1106,115 @@ export function buildTreeSceneAsset(params: TreeParams): {
   root.name = `${profile.displayName.replace(/\s+/g, '_')}_${params.season}`;
 
   const treeAnchors: Array<{ x: number; z: number; radius: number }> = [];
+  const mixProfiles: SpeciesProfile[] = [];
 
   if (params.viewMode === ViewMode.Specimen) {
     const hero = buildSingleTree(params, profile, 0, 1.0, 0, `${profile.displayName.replace(/\s+/g, '_')}_Hero`);
     root.add(hero);
+    mixProfiles.push(profile);
     const box = new THREE.Box3().setFromObject(hero);
     const size = new THREE.Vector3();
     box.getSize(size);
     treeAnchors.push({ x: 0, z: 0, radius: Math.max(size.x, size.z) * 0.55 });
+  } else if (params.viewMode === ViewMode.MiniForest) {
+    const rng = createRng(params.seed ^ 0x517cc1b7);
+    const candidates = CURATED_SPECIES.filter((s) => s.id !== profile.id);
+    // Fisher-Yates deterministic shuffle of companion species
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const tmp = candidates[i];
+      candidates[i] = candidates[j];
+      candidates[j] = tmp;
+    }
+
+    // Prioritize diverse archetypes + mix of evergreen & deciduous flowering trees
+    const chosen: SpeciesProfile[] = [profile];
+    const usedArchetypes = new Set<TreeArchetype>([profile.archetype]);
+    for (const sp of candidates) {
+      if (chosen.length >= 9) break;
+      if (!usedArchetypes.has(sp.archetype)) {
+        chosen.push(sp);
+        usedArchetypes.add(sp.archetype);
+      }
+    }
+    for (const sp of candidates) {
+      if (chosen.length >= 9) break;
+      if (!chosen.some((c) => c.id === sp.id)) {
+        chosen.push(sp);
+      }
+    }
+
+    const baseScaleRatio = THREE.MathUtils.clamp(
+      params.heightM / Math.max(2, computeHeightForYear(params.year, profile)),
+      0.55,
+      1.6
+    );
+    // Fixed planting-site root spacing derived from mature species dimensions (invariant across year, height, spread)
+    const matureRefH = Math.max(12.0, profile.defaultHeightM);
+    const fixedSpacing = Math.max(4.8, matureRefH * 0.52);
+
+    // Center hero tree
+    const heroTree = buildSingleTree(
+      params,
+      chosen[0],
+      0,
+      1.05,
+      0,
+      `Forest_01_${chosen[0].displayName.replace(/\s+/g, '_')}`
+    );
+    root.add(heroTree);
+    mixProfiles.push(chosen[0]);
+    const hBox = new THREE.Box3().setFromObject(heroTree);
+    const hSize = new THREE.Vector3();
+    hBox.getSize(hSize);
+    treeAnchors.push({ x: 0, z: 0, radius: Math.max(hSize.x, hSize.z) * 0.52 });
+
+    // Inner mid-story ring (3 trees) + outer emergent/understory ring (5 trees)
+    for (let i = 1; i < chosen.length; i++) {
+      const sp = chosen[i];
+      const isInner = i <= 3;
+      const ringIdx = isInner ? i - 1 : i - 4;
+      const ringTotal = isInner ? 3 : 5;
+      const angleOffset = isInner ? 0.45 : 0.15;
+      const angle = (ringIdx / ringTotal) * Math.PI * 2 + angleOffset + (rng() - 0.5) * 0.28;
+      const dist = fixedSpacing * (isInner ? randRange(rng, 0.88, 1.05) : randRange(rng, 1.55, 1.88));
+      const x = Math.cos(angle) * dist;
+      const z = Math.sin(angle) * dist;
+
+      const spNaturalH = computeHeightForYear(params.year, sp) * baseScaleRatio;
+      const layerFactor = isInner ? randRange(rng, 0.85, 1.05) : randRange(rng, 0.72, 1.16);
+      const spTargetH = THREE.MathUtils.clamp(spNaturalH * layerFactor, 2.2, 30);
+      const heightMult = spTargetH / Math.max(0.5, params.heightM);
+      const hueShift = (rng() - 0.5) * 0.06 * (0.3 + params.colorVariation * 0.8);
+
+      const tree = buildSingleTree(
+        params,
+        sp,
+        i * 3,
+        heightMult,
+        hueShift,
+        `Forest_0${i + 1}_${sp.displayName.replace(/\s+/g, '_')}`
+      );
+      tree.position.set(x, 0, z);
+      tree.rotation.y = randRange(rng, 0, Math.PI * 2);
+      root.add(tree);
+      mixProfiles.push(sp);
+
+      const tBox = new THREE.Box3().setFromObject(tree);
+      const tSize = new THREE.Vector3();
+      tBox.getSize(tSize);
+      treeAnchors.push({ x, z, radius: Math.max(tSize.x, tSize.z) * 0.52 });
+    }
   } else {
     const ringCount = 6;
     const heightMultipliers = [1.05, 0.78, 1.18, 0.86, 0.72, 0.96, 1.12];
-    const baseSpacing = Math.max(3.6, params.heightM * 0.58 * params.foliageSpread);
+    // Fixed planting-site root spacing derived from mature species dimensions (invariant across year, height, spread)
+    const matureRefH = Math.max(6.5, profile.defaultHeightM);
+    const fixedSpacing = Math.max(4.5, matureRefH * 0.56 * Math.max(0.85, profile.branchSpread));
 
     const centerTree = buildSingleTree(params, profile, 0, heightMultipliers[0], 0, 'Variant_01_Hero');
     root.add(centerTree);
+    mixProfiles.push(profile);
     const cBox = new THREE.Box3().setFromObject(centerTree);
     const cSize = new THREE.Vector3();
     cBox.getSize(cSize);
@@ -1131,7 +1223,7 @@ export function buildTreeSceneAsset(params: TreeParams): {
     const rng = createRng(params.seed ^ 0x9e3779b9);
     for (let i = 0; i < ringCount; i++) {
       const angle = (i / ringCount) * Math.PI * 2 + 0.35 + (rng() - 0.5) * 0.22;
-      const dist = baseSpacing * (i % 2 === 0 ? 1.0 : 1.18);
+      const dist = fixedSpacing * (i % 2 === 0 ? 1.0 : 1.18);
       const x = Math.cos(angle) * dist;
       const z = Math.sin(angle) * dist;
       const hueShift = (rng() - 0.5) * 0.08 * (0.35 + params.colorVariation * 0.9);
@@ -1146,6 +1238,7 @@ export function buildTreeSceneAsset(params: TreeParams): {
       tree.position.set(x, 0, z);
       tree.rotation.y = randRange(rng, 0, Math.PI * 2);
       root.add(tree);
+      mixProfiles.push(profile);
 
       const tBox = new THREE.Box3().setFromObject(tree);
       const tSize = new THREE.Vector3();
@@ -1174,9 +1267,20 @@ export function buildTreeSceneAsset(params: TreeParams): {
     }
   });
 
+  const uniqueSpeciesNames = Array.from(
+    new Set(mixProfiles.map((sp) => (sp.chineseName ? `${sp.displayName} ${sp.chineseName}` : sp.displayName)))
+  );
+
+  let crownAreaM2 = 0;
+  for (const anchor of treeAnchors) {
+    const r = Math.max(0.4, anchor.radius * 0.92);
+    crownAreaM2 += Math.PI * r * r;
+  }
+
   return {
     root,
     profile,
+    mixProfiles,
     treeAnchors,
     stats: {
       triangles: Math.round(triangles),
@@ -1185,6 +1289,9 @@ export function buildTreeSceneAsset(params: TreeParams): {
       heightM: Number(fullSize.y.toFixed(2)),
       widthM: Number(Math.max(fullSize.x, fullSize.z).toFixed(2)),
       treeCount: treeAnchors.length,
+      crownAreaM2: Number(crownAreaM2.toFixed(1)),
+      speciesCount: uniqueSpeciesNames.length,
+      mixSpeciesNames: uniqueSpeciesNames,
     },
   };
 }

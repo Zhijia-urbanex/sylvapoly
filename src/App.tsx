@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ControlDock } from './components/ControlDock';
 import { TopBar } from './components/TopBar';
 import { TreeViewport } from './components/TreeViewport';
+import { computeEcoMetrics, computePollinatorActivity } from './engine/ecoMetrics';
 import {
   buildExportFilename,
   exportTreeAsGLB,
@@ -56,6 +57,7 @@ export default function App() {
   const [showGrid, setShowGrid] = useState(true);
   const [wireframe, setWireframe] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
+  const [ecoOverlay, setEcoOverlay] = useState(true);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>(CameraPreset.Hero);
   const [cameraTrigger, setCameraTrigger] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
@@ -70,11 +72,35 @@ export default function App() {
     treeCount: 7,
   });
 
+  const [mixProfiles, setMixProfiles] = useState<SpeciesProfile[]>([INITIAL_SPECIES]);
   const activeTreeGroupRef = useRef<THREE.Group | null>(null);
 
   const resolvedProfile = useMemo(
     () => resolveSpecies(params.speciesQuery),
     [params.speciesQuery]
+  );
+
+  const ecoMetrics = useMemo(
+    () =>
+      computeEcoMetrics(
+        resolvedProfile,
+        params,
+        stats.widthM,
+        stats.treeCount,
+        mixProfiles,
+        stats.crownAreaM2
+      ),
+    [resolvedProfile, params, stats.widthM, stats.treeCount, stats.crownAreaM2, mixProfiles]
+  );
+
+  const pollinators = useMemo(
+    () =>
+      computePollinatorActivity(
+        mixProfiles.length > 0 ? mixProfiles : [resolvedProfile],
+        params,
+        ecoMetrics.activeLAI
+      ),
+    [mixProfiles, resolvedProfile, params, ecoMetrics.activeLAI]
   );
 
   // Playback loop for Years growth and/or Seasonal color iteration
@@ -124,9 +150,15 @@ export default function App() {
   }, [animateYears, animateSeasons]);
 
   const handleAssetReady = useCallback(
-    (group: THREE.Group, _profile: SpeciesProfile, nextStats: MeshStats) => {
+    (
+      group: THREE.Group,
+      _profile: SpeciesProfile,
+      nextStats: MeshStats,
+      nextMixProfiles: SpeciesProfile[]
+    ) => {
       activeTreeGroupRef.current = group;
       setStats(nextStats);
+      setMixProfiles(nextMixProfiles);
     },
     []
   );
@@ -293,6 +325,9 @@ export default function App() {
         showGrid={showGrid}
         wireframe={wireframe}
         autoRotate={autoRotate}
+        ecoOverlay={ecoOverlay}
+        ecoMetrics={ecoMetrics}
+        pollinators={pollinators}
         cameraPreset={cameraPreset}
         cameraTrigger={cameraTrigger}
         onAssetReady={handleAssetReady}
@@ -307,9 +342,13 @@ export default function App() {
         onToggleWireframe={() => setWireframe((w) => !w)}
         autoRotate={autoRotate}
         onToggleAutoRotate={() => setAutoRotate((r) => !r)}
+        ecoOverlay={ecoOverlay}
+        onToggleEcoOverlay={() => setEcoOverlay((e) => !e)}
         backdrop={backdrop}
         onChangeBackdrop={setBackdrop}
         stats={stats}
+        ecoMetrics={ecoMetrics}
+        year={params.year}
         isExporting={isExporting}
         onExportGLB={handleExportGLB}
       />
@@ -326,6 +365,9 @@ export default function App() {
       <ControlDock
         params={params}
         resolvedProfile={resolvedProfile}
+        ecoMetrics={ecoMetrics}
+        ecoOverlay={ecoOverlay}
+        onToggleEcoOverlay={() => setEcoOverlay((e) => !e)}
         backdrop={backdrop}
         cameraPreset={cameraPreset}
         animateYears={animateYears}

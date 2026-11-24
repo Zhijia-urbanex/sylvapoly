@@ -9,26 +9,34 @@ import {
   Search,
   Camera,
   LayoutGrid,
+  BarChart3,
   X,
   TrendingUp,
   Sun,
   Play,
   Pause,
+  Trees,
 } from 'lucide-react';
+import { parseLaiMid } from '../engine/ecoMetrics';
 import { CURATED_SPECIES } from '../engine/speciesParser';
 import {
   BackdropMode,
   CameraPreset,
   DetailLevel,
+  EcoMetrics,
   Season,
   SpeciesCategory,
   SpeciesProfile,
   TreeParams,
+  ViewMode,
 } from '../engine/types';
 
 interface ControlDockProps {
   params: TreeParams;
   resolvedProfile: SpeciesProfile;
+  ecoMetrics: EcoMetrics;
+  ecoOverlay: boolean;
+  onToggleEcoOverlay: () => void;
   backdrop: BackdropMode;
   cameraPreset: CameraPreset;
   animateYears: boolean;
@@ -69,6 +77,9 @@ const LOD_OPTIONS: Array<{ id: DetailLevel; label: string }> = [
 export function ControlDock({
   params,
   resolvedProfile,
+  ecoMetrics,
+  ecoOverlay,
+  onToggleEcoOverlay,
   backdrop,
   cameraPreset,
   animateYears,
@@ -87,6 +98,8 @@ export function ControlDock({
   const [collapsed, setCollapsed] = useState(false);
   const [activeCategory, setActiveCategory] = useState<SpeciesCategory>('all');
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [ecoMatrixOpen, setEcoMatrixOpen] = useState(false);
+  const [hoveredSpeciesId, setHoveredSpeciesId] = useState<string | null>(null);
   const stripRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -104,6 +117,7 @@ export function ControlDock({
         setCollapsed((c) => !c);
       } else if (e.key === 'Escape') {
         setCatalogOpen(false);
+        setEcoMatrixOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -167,6 +181,51 @@ export function ControlDock({
 
   const bothPlaying = animateYears && animateSeasons;
   const anyPlaying = animateYears || animateSeasons;
+
+  const inspectedSpecies = useMemo(() => {
+    if (!hoveredSpeciesId) return resolvedProfile;
+    return CURATED_SPECIES.find((s) => s.id === hoveredSpeciesId) ?? resolvedProfile;
+  }, [hoveredSpeciesId, resolvedProfile]);
+
+  const scatterPoints = useMemo(() => {
+    const W = 440;
+    const H = 200;
+    const padL = 38;
+    const padR = 16;
+    const padT = 14;
+    const padB = 28;
+    const minLai = 1.2;
+    const maxLai = 5.4;
+    const minCo2 = 0;
+    const maxCo2 = 45;
+
+    const toX = (lai: number) =>
+      padL + ((Math.max(minLai, Math.min(maxLai, lai)) - minLai) / (maxLai - minLai)) * (W - padL - padR);
+    const toY = (co2: number) =>
+      H - padB - ((Math.max(minCo2, Math.min(maxCo2, co2)) - minCo2) / (maxCo2 - minCo2)) * (H - padT - padB);
+
+    return {
+      W,
+      H,
+      padL,
+      padR,
+      padT,
+      padB,
+      toX,
+      toY,
+      items: CURATED_SPECIES.map((sp) => {
+        const lai = parseLaiMid(sp);
+        const co2 = sp.co2KgPerYear ?? 22;
+        return {
+          sp,
+          lai,
+          co2,
+          cx: toX(lai),
+          cy: toY(co2),
+        };
+      }),
+    };
+  }, []);
 
   return (
     <div className="pointer-events-none fixed bottom-0 inset-x-0 z-20 flex justify-center px-4">
@@ -263,6 +322,277 @@ export function ControlDock({
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* LAI & Carbon Sequestration Eco Matrix Upward Popover */}
+        {ecoMatrixOpen && !collapsed && (
+          <div
+            role="dialog"
+            aria-label="LAI and Carbon Sequestration Eco Matrix"
+            className={`pointer-events-auto mb-2 rounded-xl border p-4 shadow-xl ${dockBg}`}
+          >
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-baseline gap-2.5">
+                <h2 className="font-display text-sm font-semibold">
+                  Eco Matrix · LAI &amp; Carbon Sequestration
+                </h2>
+                <span className={`text-xs ${mutedLabel}`}>
+                  All 25 catalog species · Click any point to load in 3D
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onToggleEcoOverlay}
+                  aria-pressed={ecoOverlay}
+                  className={`rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                    ecoOverlay ? activeToggle : inputBg
+                  }`}
+                >
+                  {ecoOverlay ? '3D Eco Overlay: On' : '3D Eco Overlay: Off'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEcoMatrixOpen(false)}
+                  aria-label="Close Eco Matrix"
+                  className={`rounded-md p-1 transition-colors cursor-pointer ${segIdle}`}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.45fr_1fr] lg:items-center">
+              {/* Left: Interactive 25-Species Scatter Chart */}
+              <div>
+                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="font-semibold">
+                      {inspectedSpecies.chineseName
+                        ? `${inspectedSpecies.displayName} ${inspectedSpecies.chineseName}`
+                        : inspectedSpecies.displayName}
+                    </span>
+                    <span className={mutedLabel}>·</span>
+                    <span className={`font-mono-num ${mutedLabel}`}>
+                      LAI {parseLaiMid(inspectedSpecies).toFixed(1)}
+                    </span>
+                    <span className={mutedLabel}>·</span>
+                    <span className={`font-mono-num ${mutedLabel}`}>
+                      {(inspectedSpecies.co2KgPerYear ?? 22).toFixed(1)} kg CO₂/yr
+                    </span>
+                    <span className={mutedLabel}>·</span>
+                    <span className={`font-mono-num ${mutedLabel}`}>
+                      {((inspectedSpecies.co2KgPerYear ?? 22) * (32 / 44)).toFixed(1)} kg O₂/yr
+                    </span>
+                  </div>
+                  <div className={`flex items-center gap-3 text-[11px] ${mutedLabel}`}>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                      Evergreen
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                      Deciduous
+                    </span>
+                  </div>
+                </div>
+
+                <svg
+                  viewBox={`0 0 ${scatterPoints.W} ${scatterPoints.H}`}
+                  className={`w-full rounded-lg border ${
+                    isDark
+                      ? 'border-slate-700/70 bg-slate-900/60'
+                      : 'border-slate-200 bg-slate-50/70'
+                  }`}
+                  role="img"
+                  aria-label="Scatter plot comparing Leaf Area Index and annual CO2 sequestration across 25 tree species"
+                >
+                  {/* Horizontal CO2 Gridlines */}
+                  {[10, 20, 30, 40].map((co2Tick) => {
+                    const y = scatterPoints.toY(co2Tick);
+                    return (
+                      <g key={`co2-${co2Tick}`}>
+                        <line
+                          x1={scatterPoints.padL}
+                          x2={scatterPoints.W - scatterPoints.padR}
+                          y1={y}
+                          y2={y}
+                          stroke={isDark ? '#334155' : '#cbd5e1'}
+                          strokeDasharray="3 3"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={scatterPoints.padL - 6}
+                          y={y + 3}
+                          textAnchor="end"
+                          fontSize="9"
+                          className="font-mono-num"
+                          fill={isDark ? '#94a3b8' : '#64748b'}
+                        >
+                          {co2Tick}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Vertical LAI Gridlines */}
+                  {[2, 3, 4, 5].map((laiTick) => {
+                    const x = scatterPoints.toX(laiTick);
+                    return (
+                      <g key={`lai-${laiTick}`}>
+                        <line
+                          x1={x}
+                          x2={x}
+                          y1={scatterPoints.padT}
+                          y2={scatterPoints.H - scatterPoints.padB}
+                          stroke={isDark ? '#334155' : '#cbd5e1'}
+                          strokeDasharray="3 3"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={x}
+                          y={scatterPoints.H - scatterPoints.padB + 12}
+                          textAnchor="middle"
+                          fontSize="9"
+                          className="font-mono-num"
+                          fill={isDark ? '#94a3b8' : '#64748b'}
+                        >
+                          {laiTick}.0
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Axis Labels */}
+                  <text
+                    x={(scatterPoints.padL + scatterPoints.W - scatterPoints.padR) / 2}
+                    y={scatterPoints.H - 4}
+                    textAnchor="middle"
+                    fontSize="9.5"
+                    fill={isDark ? '#94a3b8' : '#475569'}
+                  >
+                    Typical Leaf Area Index (LAI)
+                  </text>
+                  <text
+                    x={11}
+                    y={(scatterPoints.padT + scatterPoints.H - scatterPoints.padB) / 2}
+                    textAnchor="middle"
+                    fontSize="9.5"
+                    transform={`rotate(-90 11 ${(scatterPoints.padT + scatterPoints.H - scatterPoints.padB) / 2})`}
+                    fill={isDark ? '#94a3b8' : '#475569'}
+                  >
+                    kg CO₂/yr
+                  </text>
+
+                  {/* 25 Species Points */}
+                  {scatterPoints.items.map(({ sp, cx, cy }) => {
+                    const isSelected = resolvedProfile.id === sp.id;
+                    const isHovered = hoveredSpeciesId === sp.id;
+                    const fill = sp.evergreen ? '#10B981' : '#F59E0B';
+                    return (
+                      <g
+                        key={sp.id}
+                        className="cursor-pointer"
+                        onMouseEnter={() => setHoveredSpeciesId(sp.id)}
+                        onMouseLeave={() => setHoveredSpeciesId(null)}
+                        onClick={() => onSelectPresetSpecies(sp)}
+                      >
+                        {isSelected && (
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={9.5}
+                            fill="none"
+                            stroke={isDark ? '#F8FAFC' : '#0F172A'}
+                            strokeWidth="1.75"
+                          />
+                        )}
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={isSelected || isHovered ? 6 : 4.3}
+                          fill={fill}
+                          fillOpacity={isSelected || isHovered ? 1 : 0.84}
+                          stroke={isDark ? '#0F172A' : '#FFFFFF'}
+                          strokeWidth="1.2"
+                        />
+                        {(isSelected || isHovered) && (
+                          <text
+                            x={cx > scatterPoints.W * 0.68 ? cx - 9 : cx + 9}
+                            y={cy + 3}
+                            textAnchor={cx > scatterPoints.W * 0.68 ? 'end' : 'start'}
+                            fontSize="9.5"
+                            fontWeight="600"
+                            fill={isDark ? '#F8FAFC' : '#0F172A'}
+                          >
+                            {sp.chineseName || sp.displayName}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+
+              {/* Right: Live Specimen / Grove Eco Telemetry Breakdown */}
+              <div className={`divide-y ${divider}`}>
+                <div className="pb-2.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className={`text-[11px] font-medium ${mutedLabel}`}>
+                      Active Canopy &amp; Leaf Surface
+                    </span>
+                    <span className={`font-mono-num text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                      LAI {ecoMetrics.activeLAI.toFixed(2)}
+                    </span>
+                  </div>
+                  <p className={`mt-0.5 font-mono-num text-[11px] ${mutedLabel}`}>
+                    Crown {ecoMetrics.crownProjectionM2} m² × LAI ={' '}
+                    <span className={isDark ? 'text-slate-200 font-semibold' : 'text-slate-900 font-semibold'}>
+                      {ecoMetrics.totalLeafSurfaceM2.toLocaleString()} m²
+                    </span>{' '}
+                    leaf area
+                  </p>
+                </div>
+
+                <div className="py-2.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className={`text-[11px] font-medium ${mutedLabel}`}>
+                      Carbon Sequestered (
+                      {params.viewMode === ViewMode.MiniForest
+                        ? '9 trees mix'
+                        : params.viewMode === ViewMode.Grove
+                          ? '7 trees'
+                          : '1 tree'}
+                      )
+                    </span>
+                    <span className={`font-mono-num text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                      {ecoMetrics.annualCo2Kg.toFixed(1)} kg CO₂/yr
+                    </span>
+                  </div>
+                  <p className={`mt-0.5 font-mono-num text-[11px] ${mutedLabel}`}>
+                    <span className={isDark ? 'text-slate-200 font-semibold' : 'text-slate-900 font-semibold'}>
+                      {ecoMetrics.cumulativeCo2Kg.toLocaleString()} kg
+                    </span>{' '}
+                    stored by Yr {Math.round(params.year)} · ~{ecoMetrics.drivingKmOffset.toLocaleString()} km/yr offset
+                  </p>
+                </div>
+
+                <div className="pt-2.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className={`text-[11px] font-medium ${mutedLabel}`}>
+                      Oxygen &amp; Microclimate Cooling
+                    </span>
+                    <span className={`font-mono-num text-sm font-bold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>
+                      {ecoMetrics.annualO2Kg.toFixed(1)} kg O₂/yr
+                    </span>
+                  </div>
+                  <p className={`mt-0.5 font-mono-num text-[11px] ${mutedLabel}`}>
+                    Surface −{ecoMetrics.surfaceCoolC} · Air −{ecoMetrics.airCoolC}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -461,7 +791,10 @@ export function ControlDock({
 
             <button
               type="button"
-              onClick={() => setCatalogOpen((o) => !o)}
+              onClick={() => {
+                setEcoMatrixOpen(false);
+                setCatalogOpen((o) => !o);
+              }}
               aria-expanded={catalogOpen}
               className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 catalogOpen ? activeToggle : inputBg
@@ -469,6 +802,22 @@ export function ControlDock({
             >
               <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
               <span>All Species</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCatalogOpen(false);
+                setEcoMatrixOpen((o) => !o);
+              }}
+              aria-expanded={ecoMatrixOpen}
+              title="Compare LAI & Carbon Sequestration across all 25 species"
+              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                ecoMatrixOpen ? activeToggle : inputBg
+              }`}
+            >
+              <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Eco Matrix</span>
             </button>
           </div>
 
@@ -705,12 +1054,36 @@ export function ControlDock({
 
               <button
                 type="button"
+                onClick={() =>
+                  onUpdateParams({
+                    viewMode:
+                      params.viewMode === ViewMode.MiniForest
+                        ? ViewMode.Specimen
+                        : ViewMode.MiniForest,
+                  })
+                }
+                aria-pressed={params.viewMode === ViewMode.MiniForest}
+                title="Generate a multi-species ecological mini-forest mix (use Seed to remix species)"
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  params.viewMode === ViewMode.MiniForest ? activeToggle : inputBg
+                }`}
+              >
+                <Trees className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Mini-Forest Mix</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={onRandomizeSeed}
-                title="Generate new variation seed"
+                title={
+                  params.viewMode === ViewMode.MiniForest
+                    ? 'Remix mini-forest species & layout'
+                    : 'Generate new variation seed'
+                }
                 className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${inputBg}`}
               >
                 <Shuffle className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Seed</span>
+                <span>{params.viewMode === ViewMode.MiniForest ? 'Remix' : 'Seed'}</span>
               </button>
 
               <button

@@ -1,5 +1,5 @@
-import { Download, Grid3X3, Box, Trees, RotateCw } from 'lucide-react';
-import { BackdropMode, MeshStats, ViewMode } from '../engine/types';
+import { Download, Grid3X3, Box, Trees, Sparkles, RotateCw, Leaf } from 'lucide-react';
+import { BackdropMode, EcoMetrics, MeshStats, ViewMode } from '../engine/types';
 
 interface TopBarProps {
   viewMode: ViewMode;
@@ -10,9 +10,13 @@ interface TopBarProps {
   onToggleWireframe: () => void;
   autoRotate: boolean;
   onToggleAutoRotate: () => void;
+  ecoOverlay: boolean;
+  onToggleEcoOverlay: () => void;
   backdrop: BackdropMode;
   onChangeBackdrop: (b: BackdropMode) => void;
   stats: MeshStats;
+  ecoMetrics: EcoMetrics;
+  year: number;
   isExporting: boolean;
   onExportGLB: () => void;
 }
@@ -26,9 +30,13 @@ export function TopBar({
   onToggleWireframe,
   autoRotate,
   onToggleAutoRotate,
+  ecoOverlay,
+  onToggleEcoOverlay,
   backdrop,
   onChangeBackdrop,
   stats,
+  ecoMetrics,
+  year,
   isExporting,
   onExportGLB,
 }: TopBarProps) {
@@ -86,6 +94,17 @@ export function TopBar({
               <Trees className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Grove Pack</span>
             </button>
+            <button
+              type="button"
+              onClick={() => onChangeViewMode(ViewMode.MiniForest)}
+              title="Generate a multi-species ecological mini-forest mix"
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 ${
+                viewMode === ViewMode.MiniForest ? activeSeg : `${mutedText} ${subtleHover}`
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Mini-Forest</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -132,6 +151,22 @@ export function TopBar({
             >
               <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Spin</span>
+            </button>
+            <button
+              type="button"
+              onClick={onToggleEcoOverlay}
+              aria-pressed={ecoOverlay}
+              title="Toggle 3D LAI shade footprint, carbon ring & CO₂/O₂ flux"
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                ecoOverlay
+                  ? isDark
+                    ? 'bg-emerald-500/25 text-emerald-200'
+                    : 'bg-emerald-600 text-white'
+                  : `${mutedText} ${subtleHover}`
+              }`}
+            >
+              <Leaf className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Eco Layer</span>
             </button>
           </div>
 
@@ -180,39 +215,79 @@ export function TopBar({
         </div>
       </header>
 
-      {/* Quiet unboxed mesh telemetry bar directly below top-left */}
+      {/* Quiet unboxed mesh & ecological telemetry bar directly below top-left */}
       <div
-        className={`mx-auto mt-2 flex max-w-[1380px] flex-wrap items-center justify-between gap-2 px-1 text-xs font-medium ${
+        className={`mx-auto mt-2 flex max-w-[1380px] flex-col gap-0.5 px-1 text-xs font-medium ${
           isDark ? 'text-slate-300/90' : 'text-slate-800/80'
         }`}
       >
-        <div className="flex flex-wrap items-center gap-2 font-mono-num">
-          <span>{stats.triangles.toLocaleString()} tris</span>
-          <span aria-hidden="true">·</span>
-          <span>{stats.vertices.toLocaleString()} verts</span>
-          <span aria-hidden="true">·</span>
-          <span>{stats.heightM.toFixed(1)}m H × {stats.widthM.toFixed(1)}m W</span>
-          <span aria-hidden="true">·</span>
-          <span>
-            {stats.treeCount > 1 ? `${stats.treeCount} variants` : '1 specimen'}
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>Pivot (0, 0, 0)</span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2 font-mono-num">
+            <span>{stats.triangles.toLocaleString()} tris</span>
+            <span aria-hidden="true">·</span>
+            <span>{stats.vertices.toLocaleString()} verts</span>
+            <span aria-hidden="true">·</span>
+            <span>{stats.heightM.toFixed(1)}m H × {stats.widthM.toFixed(1)}m W</span>
+            <span aria-hidden="true">·</span>
+            <span>
+              {viewMode === ViewMode.MiniForest
+                ? `${stats.treeCount} trees · ${stats.speciesCount ?? 1} species mix`
+                : stats.treeCount > 1
+                  ? `${stats.treeCount} variants`
+                  : '1 specimen'}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>Pivot (0, 0, 0)</span>
+          </div>
+
+          {/* Mobile view mode + eco quick switchers */}
+          <div className="pointer-events-auto flex md:hidden items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onToggleEcoOverlay}
+              aria-pressed={ecoOverlay}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${surfaceClass}`}
+            >
+              {ecoOverlay ? 'Eco On' : 'Eco Off'}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onChangeViewMode(
+                  viewMode === ViewMode.Specimen
+                    ? ViewMode.Grove
+                    : viewMode === ViewMode.Grove
+                      ? ViewMode.MiniForest
+                      : ViewMode.Specimen
+                )
+              }
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${surfaceClass}`}
+            >
+              {viewMode === ViewMode.Specimen
+                ? 'Single Tree'
+                : viewMode === ViewMode.Grove
+                  ? 'Grove Pack'
+                  : 'Mini-Forest'}
+            </button>
+          </div>
         </div>
 
-        {/* Mobile view mode quick switcher */}
-        <div className="pointer-events-auto flex md:hidden items-center gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              onChangeViewMode(
-                viewMode === ViewMode.Specimen ? ViewMode.Grove : ViewMode.Specimen
-              )
-            }
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium ${surfaceClass}`}
-          >
-            {viewMode === ViewMode.Specimen ? 'Single Tree' : 'Grove Pack'}
-          </button>
+        <div
+          className={`flex flex-wrap items-center gap-2 font-mono-num text-[11px] ${
+            isDark ? 'text-emerald-300/85' : 'text-slate-900/75'
+          }`}
+        >
+          <span>LAI {ecoMetrics.activeLAI.toFixed(2)}</span>
+          <span aria-hidden="true">·</span>
+          <span>Leaf Surface {ecoMetrics.totalLeafSurfaceM2.toLocaleString()} m²</span>
+          <span aria-hidden="true">·</span>
+          <span>{ecoMetrics.annualCo2Kg.toFixed(1)} kg CO₂/yr</span>
+          <span aria-hidden="true">·</span>
+          <span>
+            {ecoMetrics.cumulativeCo2Kg.toLocaleString()} kg stored (Yr {Math.round(year)})
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{ecoMetrics.annualO2Kg.toFixed(1)} kg O₂/yr</span>
         </div>
       </div>
     </div>

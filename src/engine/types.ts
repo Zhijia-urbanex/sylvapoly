@@ -19,6 +19,7 @@ export enum Season {
 export enum ViewMode {
   Specimen = 'specimen',
   Grove = 'grove',
+  MiniForest = 'miniforest',
 }
 
 export enum BackdropMode {
@@ -72,12 +73,35 @@ export interface SpeciesProfile {
   maxHeightM?: number;
   crownWidthRangeM?: string;
   laiTypical?: string;
+  laiMid?: number;
   co2KgPerYear?: number;
+  o2KgPerYear?: number;
+  surfaceCoolC?: string;
+  airCoolC?: string;
   trunkTaper: number; // 0.25 - 0.65
   trunkCurvature: number; // 0 - 1
   branchSpread: number; // 0.5 - 1.5
   canopyRatio: number; // fraction of height occupied by canopy
   palettes: Record<Exclude<Season, Season.Custom>, SeasonalPalette>;
+}
+
+export interface EcoMetrics {
+  activeLAI: number;
+  crownProjectionM2: number;
+  totalLeafSurfaceM2: number; // Crown Projection Area * LAI (PDF PM2.5 / shade capacity)
+  annualCo2Kg: number;
+  cumulativeCo2Kg: number;
+  annualO2Kg: number;
+  drivingKmOffset: number;
+  surfaceCoolC: string;
+  airCoolC: string;
+}
+
+export interface PollinatorActivity {
+  active: boolean;
+  butterflies: number;
+  bees: number;
+  reason: string;
 }
 
 export interface TreeParams {
@@ -104,4 +128,7 @@ export interface MeshStats {
   heightM: number;
   widthM: number;
   treeCount: number;
+  crownAreaM2?: number;
+  speciesCount?: number;
+  mixSpeciesNames?: string[];
 }
