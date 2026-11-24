@@ -1,0 +1,6 @@
+{
+  "name": "SylvaPoly",
+  "description": "Procedural low-poly 3D tree generator for game engines with species morphology parsing, seasonal color palettes, height scaling, and GLB/OBJ export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
