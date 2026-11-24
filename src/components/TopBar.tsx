@@ -55,9 +55,9 @@ export function TopBar({
     : 'bg-slate-900 text-white';
 
   return (
-    <div className="pointer-events-none fixed top-0 left-0 right-0 z-20 px-4 pt-4 md:px-6">
+    <div className="pointer-events-none fixed top-0 left-0 right-0 z-20 px-3 pt-2.5 md:px-6 md:pt-4">
       <header
-        className={`pointer-events-auto mx-auto flex max-w-[1380px] items-center justify-between gap-8 rounded-xl border px-5 py-2.5 shadow-sm transition-colors ${surfaceClass}`}
+        className={`pointer-events-auto mx-auto flex max-w-[1380px] items-center justify-between gap-4 md:gap-8 rounded-xl border px-3.5 py-2 md:px-5 md:py-2.5 shadow-sm transition-colors ${surfaceClass}`}
       >
         {/* Zone 1: Single-element Brand Wordmark */}
         <span className="font-display text-lg font-bold tracking-tight whitespace-nowrap shrink-0">
@@ -215,61 +215,28 @@ export function TopBar({
         </div>
       </header>
 
-      {/* Quiet unboxed mesh & ecological telemetry bar directly below top-left */}
+      {/* Desktop: Full unboxed mesh & ecological telemetry */}
       <div
-        className={`mx-auto mt-2 flex max-w-[1380px] flex-col gap-0.5 px-1 text-xs font-medium ${
+        className={`mx-auto mt-2 hidden md:flex max-w-[1380px] flex-col gap-0.5 px-1 text-xs font-medium ${
           isDark ? 'text-slate-300/90' : 'text-slate-800/80'
         }`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2 font-mono-num">
-            <span>{stats.triangles.toLocaleString()} tris</span>
-            <span aria-hidden="true">·</span>
-            <span>{stats.vertices.toLocaleString()} verts</span>
-            <span aria-hidden="true">·</span>
-            <span>{stats.heightM.toFixed(1)}m H × {stats.widthM.toFixed(1)}m W</span>
-            <span aria-hidden="true">·</span>
-            <span>
-              {viewMode === ViewMode.MiniForest
-                ? `${stats.treeCount} trees · ${stats.speciesCount ?? 1} species mix`
-                : stats.treeCount > 1
-                  ? `${stats.treeCount} variants`
-                  : '1 specimen'}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span>Pivot (0, 0, 0)</span>
-          </div>
-
-          {/* Mobile view mode + eco quick switchers */}
-          <div className="pointer-events-auto flex md:hidden items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onToggleEcoOverlay}
-              aria-pressed={ecoOverlay}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${surfaceClass}`}
-            >
-              {ecoOverlay ? 'Eco On' : 'Eco Off'}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                onChangeViewMode(
-                  viewMode === ViewMode.Specimen
-                    ? ViewMode.Grove
-                    : viewMode === ViewMode.Grove
-                      ? ViewMode.MiniForest
-                      : ViewMode.Specimen
-                )
-              }
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${surfaceClass}`}
-            >
-              {viewMode === ViewMode.Specimen
-                ? 'Single Tree'
-                : viewMode === ViewMode.Grove
-                  ? 'Grove Pack'
-                  : 'Mini-Forest'}
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center gap-2 font-mono-num">
+          <span>{stats.triangles.toLocaleString()} tris</span>
+          <span aria-hidden="true">·</span>
+          <span>{stats.vertices.toLocaleString()} verts</span>
+          <span aria-hidden="true">·</span>
+          <span>{stats.heightM.toFixed(1)}m H × {stats.widthM.toFixed(1)}m W</span>
+          <span aria-hidden="true">·</span>
+          <span>
+            {viewMode === ViewMode.MiniForest
+              ? `${stats.treeCount} trees · ${stats.speciesCount ?? 1} species mix`
+              : stats.treeCount > 1
+                ? `${stats.treeCount} variants`
+                : '1 specimen'}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>Pivot (0, 0, 0)</span>
         </div>
 
         <div
@@ -288,6 +255,57 @@ export function TopBar({
           </span>
           <span aria-hidden="true">·</span>
           <span>{ecoMetrics.annualO2Kg.toFixed(1)} kg O₂/yr</span>
+        </div>
+      </div>
+
+      {/* Mobile: Simple single-line summary + compact mode/eco buttons */}
+      <div
+        className={`mx-auto mt-1.5 flex md:hidden items-center justify-between gap-2 px-0.5 text-[11px] font-medium ${
+          isDark ? 'text-slate-200' : 'text-slate-800'
+        }`}
+      >
+        <div className="flex items-center gap-1.5 font-mono-num truncate">
+          <span>{stats.heightM.toFixed(1)}m</span>
+          <span aria-hidden="true">·</span>
+          <span>LAI {ecoMetrics.activeLAI.toFixed(1)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{ecoMetrics.annualCo2Kg.toFixed(0)} kg CO₂</span>
+        </div>
+
+        <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={onToggleEcoOverlay}
+            aria-pressed={ecoOverlay}
+            className={`rounded-md border px-2 py-1 text-[11px] font-medium whitespace-nowrap ${
+              ecoOverlay
+                ? isDark
+                  ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-200'
+                  : 'border-emerald-700 bg-emerald-600 text-white'
+                : surfaceClass
+            }`}
+          >
+            Eco
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onChangeViewMode(
+                viewMode === ViewMode.Specimen
+                  ? ViewMode.Grove
+                  : viewMode === ViewMode.Grove
+                    ? ViewMode.MiniForest
+                    : ViewMode.Specimen
+              )
+            }
+            className={`rounded-md border px-2 py-1 text-[11px] font-medium whitespace-nowrap ${surfaceClass}`}
+          >
+            {viewMode === ViewMode.Specimen
+              ? '1 Tree'
+              : viewMode === ViewMode.Grove
+                ? 'Grove'
+                : 'Mix'}
+          </button>
         </div>
       </div>
     </div>

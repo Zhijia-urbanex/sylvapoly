@@ -96,6 +96,7 @@ export function ControlDock({
   onExportOBJ,
 }: ControlDockProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'species' | 'grow' | 'mix'>('species');
   const [activeCategory, setActiveCategory] = useState<SpeciesCategory>('all');
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [ecoMatrixOpen, setEcoMatrixOpen] = useState(false);
@@ -138,7 +139,7 @@ export function ControlDock({
 
   useEffect(() => {
     updateScrollButtons();
-  }, [filteredSpecies, collapsed]);
+  }, [filteredSpecies, collapsed, mobileTab]);
 
   useEffect(() => {
     window.addEventListener('resize', updateScrollButtons);
@@ -228,11 +229,11 @@ export function ControlDock({
   }, []);
 
   return (
-    <div className="pointer-events-none fixed bottom-0 inset-x-0 z-20 flex justify-center px-4">
+    <div className="pointer-events-none fixed bottom-0 inset-x-0 z-20 flex justify-center px-2.5 md:px-4">
       <div
-        className="relative w-full max-w-[1040px] pb-4 transition-transform duration-200 ease-out"
+        className="relative w-full max-w-[1040px] pb-2.5 md:pb-4 transition-transform duration-200 ease-out"
         style={{
-          transform: collapsed ? 'translateY(calc(100% - 32px))' : 'translateY(0)',
+          transform: collapsed ? 'translateY(calc(100% - 30px))' : 'translateY(0)',
         }}
       >
         {/* Full 25-Species Catalog Upward Popover */}
@@ -240,14 +241,14 @@ export function ControlDock({
           <div
             role="dialog"
             aria-label="All 25 tree species catalog"
-            className={`pointer-events-auto mb-2 rounded-xl border p-4 shadow-xl ${dockBg}`}
+            className={`pointer-events-auto mb-2 rounded-xl border p-3 md:p-4 shadow-xl ${dockBg}`}
           >
-            <div className="mb-3 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
                 <h2 className="font-display text-sm font-semibold">
                   Species Catalog
                 </h2>
-                <span className={`text-xs ${mutedLabel}`}>
+                <span className={`hidden sm:inline text-xs ${mutedLabel}`}>
                   {filteredSpecies.length} species · Click any species to generate
                 </span>
               </div>
@@ -261,7 +262,7 @@ export function ControlDock({
               </button>
             </div>
 
-            <div className="grid max-h-[260px] grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            <div className="grid max-h-[38vh] md:max-h-[260px] grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {filteredSpecies.map((sp) => {
                 const isSelected = resolvedProfile.id === sp.id;
                 return (
@@ -331,14 +332,14 @@ export function ControlDock({
           <div
             role="dialog"
             aria-label="LAI and Carbon Sequestration Eco Matrix"
-            className={`pointer-events-auto mb-2 rounded-xl border p-4 shadow-xl ${dockBg}`}
+            className={`pointer-events-auto mb-2 max-h-[48vh] overflow-y-auto md:max-h-none md:overflow-visible rounded-xl border p-3 md:p-4 shadow-xl ${dockBg}`}
           >
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-baseline gap-2.5">
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <h2 className="font-display text-sm font-semibold">
-                  Eco Matrix · LAI &amp; Carbon Sequestration
+                  Eco Matrix · LAI &amp; Carbon
                 </h2>
-                <span className={`text-xs ${mutedLabel}`}>
+                <span className={`hidden sm:inline text-xs ${mutedLabel}`}>
                   All 25 catalog species · Click any point to load in 3D
                 </span>
               </div>
@@ -603,7 +604,7 @@ export function ControlDock({
             type="button"
             onClick={() => setCollapsed((c) => !c)}
             aria-expanded={!collapsed}
-            className={`pointer-events-auto flex items-center gap-1.5 rounded-t-lg border border-b-0 px-4 py-1.5 text-xs font-medium shadow-sm transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-emerald-600 ${dockBg}`}
+            className={`pointer-events-auto flex items-center gap-1.5 rounded-t-lg border border-b-0 px-3.5 py-1 md:px-4 md:py-1.5 text-[11px] md:text-xs font-medium shadow-sm transition-colors cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-emerald-600 ${dockBg}`}
           >
             {collapsed ? (
               <>
@@ -622,210 +623,253 @@ export function ControlDock({
         {/* Main Dock Panel */}
         <section
           aria-label="Tree generator controls"
-          className={`pointer-events-auto rounded-xl border p-4 shadow-lg ${dockBg}`}
+          className={`pointer-events-auto rounded-xl border p-2.5 md:p-4 shadow-lg ${dockBg}`}
         >
-          {/* Row 1: Species Input + Botanical Specs + Season Selector */}
-          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-1 flex-wrap items-center gap-2.5 min-w-0">
-              <div className="relative flex-1 min-w-[200px] max-w-[260px]">
-                <Search
-                  className={`pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${mutedLabel}`}
-                  aria-hidden="true"
-                />
-                <input
-                  type="text"
-                  aria-label="Tree species name"
-                  value={params.speciesQuery}
-                  onChange={(e) => onUpdateParams({ speciesQuery: e.target.value })}
-                  placeholder="Type species (e.g. 榕樹, Sweet Gum)..."
-                  className={`w-full rounded-lg border py-1.5 pl-8 pr-3 text-sm font-medium outline-none transition-colors focus:border-emerald-600 ${inputBg}`}
-                />
+          {/* Mobile Compact Header & Tab Switcher */}
+          <div className={`mb-2 flex md:hidden items-center justify-between gap-2 border-b pb-2 ${divider}`}>
+            <div className="flex items-center gap-1.5 min-w-0 text-xs">
+              <span className="truncate font-semibold">
+                {resolvedProfile.chineseName || resolvedProfile.displayName}
+              </span>
+              <span className={mutedLabel}>·</span>
+              <span className={`font-mono-num shrink-0 ${mutedLabel}`}>
+                Yr {Math.round(params.year)}
+              </span>
+            </div>
+
+            <div className={`flex items-center gap-0.5 rounded-lg p-0.5 shrink-0 ${segTrack}`}>
+              {(
+                [
+                  { id: 'species', label: 'Species' },
+                  { id: 'grow', label: 'Grow' },
+                  { id: 'mix', label: 'Mix' },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setMobileTab(tab.id)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                    mobileTab === tab.id ? segActive : segIdle
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Species & Season Block (Always visible on md+, tabbed on mobile) */}
+          <div className={mobileTab === 'species' ? 'block' : 'hidden md:block'}>
+            {/* Row 1: Species Input + Botanical Specs + Season Selector */}
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-1 flex-wrap items-center gap-2.5 min-w-0">
+                <div className="relative flex-1 min-w-[160px] md:min-w-[200px] md:max-w-[260px]">
+                  <Search
+                    className={`pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${mutedLabel}`}
+                    aria-hidden="true"
+                  />
+                  <input
+                    type="text"
+                    aria-label="Tree species name"
+                    value={params.speciesQuery}
+                    onChange={(e) => onUpdateParams({ speciesQuery: e.target.value })}
+                    placeholder="Type species (e.g. 榕樹, Sweet Gum)..."
+                    className={`w-full rounded-lg border py-1 md:py-1.5 pl-8 pr-3 text-xs md:text-sm font-medium outline-none transition-colors focus:border-emerald-600 ${inputBg}`}
+                  />
+                </div>
+
+                {/* Unboxed bilingual botanical readout (desktop only to keep mobile spacious) */}
+                <div className={`hidden md:flex flex-wrap items-center gap-1.5 text-xs truncate ${mutedLabel}`}>
+                  {resolvedProfile.chineseName && (
+                    <>
+                      <span className={isDark ? 'font-semibold text-slate-200' : 'font-semibold text-slate-800'}>
+                        {resolvedProfile.chineseName}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                    </>
+                  )}
+                  <span className="italic">{resolvedProfile.botanicalName}</span>
+                  {resolvedProfile.laiTypical && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono-num">LAI {resolvedProfile.laiTypical}</span>
+                    </>
+                  )}
+                  {resolvedProfile.co2KgPerYear && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono-num">{resolvedProfile.co2KgPerYear} kg CO₂/yr</span>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {/* Unboxed bilingual botanical readout */}
-              <div className={`flex flex-wrap items-center gap-1.5 text-xs truncate ${mutedLabel}`}>
-                {resolvedProfile.chineseName && (
-                  <>
-                    <span className={isDark ? 'font-semibold text-slate-200' : 'font-semibold text-slate-800'}>
-                      {resolvedProfile.chineseName}
-                    </span>
-                    <span aria-hidden="true">·</span>
-                  </>
-                )}
-                <span className="italic">{resolvedProfile.botanicalName}</span>
-                {resolvedProfile.laiTypical && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span className="font-mono-num">LAI {resolvedProfile.laiTypical}</span>
-                  </>
-                )}
-                {resolvedProfile.co2KgPerYear && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span className="font-mono-num">{resolvedProfile.co2KgPerYear} kg CO₂/yr</span>
-                  </>
-                )}
+              {/* Season segmented selector (single scrollable strip on mobile) */}
+              <div className="flex flex-col gap-1 shrink-0 min-w-0">
+                <div className={`flex items-center gap-1 overflow-x-auto no-scrollbar rounded-lg p-1 ${segTrack}`}>
+                  {SEASON_OPTIONS.map((opt) => {
+                    const active = params.season === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          if (opt.id !== Season.Custom) {
+                            const spPal = resolvedProfile.palettes[opt.id];
+                            onUpdateParams({
+                              season: opt.id,
+                              seasonPhase: null,
+                              customFoliageHex: spPal.foliagePrimary,
+                              customBarkHex: spPal.bark,
+                            });
+                          } else {
+                            onUpdateParams({
+                              season: Season.Custom,
+                              seasonPhase: null,
+                            });
+                          }
+                        }}
+                        className={`flex items-center gap-1.5 rounded-md px-2 md:px-2.5 py-1 md:py-1.5 text-[11px] md:text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                          active ? segActive : segIdle
+                        }`}
+                      >
+                        <span
+                          className="h-2 w-2 md:h-2.5 md:w-2.5 rounded-xs border border-black/15 shrink-0"
+                          style={{
+                            backgroundColor:
+                              opt.id === Season.Custom
+                                ? params.customFoliageHex
+                                : resolvedProfile.palettes[opt.id].foliagePrimary,
+                          }}
+                          aria-hidden="true"
+                        />
+                        <span>{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Season segmented selector */}
-            <div className="flex flex-col gap-1 shrink-0">
-              <div className={`flex items-center gap-1 rounded-lg p-1 ${segTrack}`}>
-                {SEASON_OPTIONS.map((opt) => {
-                  const active = params.season === opt.id;
+            {/* Row 2: Full-Width Category Filter + Scrollable Tree Types Strip + All-25 & Eco Matrix Buttons */}
+            <div className="mt-2 md:mt-2.5 flex items-center gap-1.5 md:gap-2 min-w-0">
+              <div className={`hidden md:flex items-center gap-0.5 rounded-lg p-0.5 shrink-0 ${segTrack}`}>
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(cat.id);
+                      if (stripRef.current) stripRef.current.scrollLeft = 0;
+                    }}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      activeCategory === cat.id ? segActive : segIdle
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => scrollStripBy(-260)}
+                disabled={!canScrollLeft}
+                aria-label="Scroll tree species left"
+                className={`hidden sm:inline-flex rounded-md border p-1 transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default ${inputBg}`}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+
+              <div
+                ref={stripRef}
+                onScroll={updateScrollButtons}
+                onWheel={(e) => {
+                  if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && stripRef.current) {
+                    e.preventDefault();
+                    stripRef.current.scrollLeft += e.deltaY;
+                  }
+                }}
+                className="flex flex-1 items-center gap-1 overflow-x-auto no-scrollbar py-0.5 min-w-0 scroll-smooth"
+              >
+                {filteredSpecies.map((sp) => {
+                  const isSelected = resolvedProfile.id === sp.id;
                   return (
                     <button
-                      key={opt.id}
+                      key={sp.id}
                       type="button"
-                      onClick={() => {
-                        if (opt.id !== Season.Custom) {
-                          const spPal = resolvedProfile.palettes[opt.id];
-                          onUpdateParams({
-                            season: opt.id,
-                            seasonPhase: null,
-                            customFoliageHex: spPal.foliagePrimary,
-                            customBarkHex: spPal.bark,
-                          });
-                        } else {
-                          onUpdateParams({
-                            season: Season.Custom,
-                            seasonPhase: null,
-                          });
-                        }
-                      }}
-                      className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                        active ? segActive : segIdle
+                      onClick={() => onSelectPresetSpecies(sp)}
+                      className={`rounded-md px-2 md:px-2.5 py-1 text-[11px] md:text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        isSelected
+                          ? isDark
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-slate-900 text-white'
+                          : isDark
+                            ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                       }`}
                     >
-                      <span
-                        className="h-2.5 w-2.5 rounded-xs border border-black/15 shrink-0"
-                        style={{
-                          backgroundColor:
-                            opt.id === Season.Custom
-                              ? params.customFoliageHex
-                              : resolvedProfile.palettes[opt.id].foliagePrimary,
-                        }}
-                        aria-hidden="true"
-                      />
-                      <span>{opt.label}</span>
+                      {sp.chineseName ? `${sp.displayName} ${sp.chineseName}` : sp.displayName}
                     </button>
                   );
                 })}
               </div>
+
+              <button
+                type="button"
+                onClick={() => scrollStripBy(260)}
+                disabled={!canScrollRight}
+                aria-label="Scroll tree species right"
+                className={`hidden sm:inline-flex rounded-md border p-1 transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default ${inputBg}`}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEcoMatrixOpen(false);
+                  setCatalogOpen((o) => !o);
+                }}
+                aria-expanded={catalogOpen}
+                className={`flex items-center gap-1 rounded-lg border px-2 md:px-2.5 py-1 text-[11px] md:text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  catalogOpen ? activeToggle : inputBg
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">All Species</span>
+                <span className="sm:hidden">All</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCatalogOpen(false);
+                  setEcoMatrixOpen((o) => !o);
+                }}
+                aria-expanded={ecoMatrixOpen}
+                title="Compare LAI & Carbon Sequestration across all 25 species"
+                className={`flex items-center gap-1 rounded-lg border px-2 md:px-2.5 py-1 text-[11px] md:text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  ecoMatrixOpen ? activeToggle : inputBg
+                }`}
+              >
+                <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Eco Matrix</span>
+                <span className="sm:hidden">Eco</span>
+              </button>
             </div>
-          </div>
-
-          {/* Row 2: Full-Width Category Filter + Scrollable Tree Types Strip + All-25 Grid Button */}
-          <div className="mt-2.5 flex items-center gap-2 min-w-0">
-            <div className={`hidden md:flex items-center gap-0.5 rounded-lg p-0.5 shrink-0 ${segTrack}`}>
-              {CATEGORY_OPTIONS.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory(cat.id);
-                    if (stripRef.current) stripRef.current.scrollLeft = 0;
-                  }}
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    activeCategory === cat.id ? segActive : segIdle
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => scrollStripBy(-260)}
-              disabled={!canScrollLeft}
-              aria-label="Scroll tree species left"
-              className={`rounded-md border p-1 transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default ${inputBg}`}
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-
-            <div
-              ref={stripRef}
-              onScroll={updateScrollButtons}
-              onWheel={(e) => {
-                if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && stripRef.current) {
-                  e.preventDefault();
-                  stripRef.current.scrollLeft += e.deltaY;
-                }
-              }}
-              className="flex flex-1 items-center gap-1 overflow-x-auto no-scrollbar py-0.5 min-w-0 scroll-smooth"
-            >
-              {filteredSpecies.map((sp) => {
-                const isSelected = resolvedProfile.id === sp.id;
-                return (
-                  <button
-                    key={sp.id}
-                    type="button"
-                    onClick={() => onSelectPresetSpecies(sp)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                      isSelected
-                        ? isDark
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : 'bg-slate-900 text-white'
-                        : isDark
-                          ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                          : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
-                    }`}
-                  >
-                    {sp.chineseName ? `${sp.displayName} ${sp.chineseName}` : sp.displayName}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => scrollStripBy(260)}
-              disabled={!canScrollRight}
-              aria-label="Scroll tree species right"
-              className={`rounded-md border p-1 transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default ${inputBg}`}
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setEcoMatrixOpen(false);
-                setCatalogOpen((o) => !o);
-              }}
-              aria-expanded={catalogOpen}
-              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                catalogOpen ? activeToggle : inputBg
-              }`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>All Species</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setCatalogOpen(false);
-                setEcoMatrixOpen((o) => !o);
-              }}
-              aria-expanded={ecoMatrixOpen}
-              title="Compare LAI & Carbon Sequestration across all 25 species"
-              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                ecoMatrixOpen ? activeToggle : inputBg
-              }`}
-            >
-              <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Eco Matrix</span>
-            </button>
           </div>
 
           {/* Hairline Divider */}
-          <div className={`my-3 border-t ${divider}`} />
+          <div className={`my-3 hidden md:block border-t ${divider}`} />
 
           {/* Row 3: Age (Years), Height, Color Variation, Spread Sliders */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:items-center">
+          <div
+            className={`${
+              mobileTab === 'grow' ? 'grid' : 'hidden md:grid'
+            } grid-cols-2 gap-x-3 gap-y-2 md:gap-4 lg:grid-cols-4 lg:items-center`}
+          >
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-xs">
                 <label htmlFor="tree-year-slider" className={`font-medium ${mutedLabel}`}>
@@ -926,13 +970,21 @@ export function ControlDock({
           </div>
 
           {/* Hairline Divider */}
-          <div className={`my-2.5 border-t ${divider}`} />
+          <div className={`my-2.5 hidden md:block border-t ${divider}`} />
 
           {/* Row 4: Years & Season Cycle Playback Controls + Swatches, LOD, Seed, Camera, .OBJ */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div
+            className={`${
+              mobileTab === 'species' ? 'hidden md:flex' : 'flex'
+            } mt-2 md:mt-0 flex-wrap items-center justify-between gap-2`}
+          >
             {/* Independent or Combined Year Growth & Season Color Cycle Controls */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className={`text-[11px] font-medium mr-1 ${mutedLabel}`}>
+            <div
+              className={`${
+                mobileTab === 'grow' ? 'flex' : 'hidden md:flex'
+              } flex-wrap items-center gap-1.5`}
+            >
+              <span className={`hidden sm:inline text-[11px] font-medium mr-1 ${mutedLabel}`}>
                 Simulate:
               </span>
               <button
@@ -940,7 +992,7 @@ export function ControlDock({
                 onClick={onToggleYears}
                 aria-pressed={animateYears}
                 title="Animate tree growth across Years 1–40"
-                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 md:py-1.5 text-[11px] md:text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   animateYears ? activeToggle : inputBg
                 }`}
               >
@@ -953,7 +1005,7 @@ export function ControlDock({
                 onClick={onToggleSeasons}
                 aria-pressed={animateSeasons}
                 title="Iterate smoothly through Spring, Summer, Autumn, and Winter colors"
-                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 md:py-1.5 text-[11px] md:text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   animateSeasons ? activeToggle : inputBg
                 }`}
               >
@@ -966,7 +1018,7 @@ export function ControlDock({
                 onClick={onToggleBoth}
                 aria-pressed={bothPlaying}
                 title="Run Years growth and Seasonal color iteration simultaneously"
-                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 md:py-1.5 text-[11px] md:text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   bothPlaying ? activeToggle : inputBg
                 }`}
               >
@@ -982,7 +1034,7 @@ export function ControlDock({
                 <button
                   type="button"
                   onClick={onStopAllPlayback}
-                  className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${inputBg}`}
+                  className={`flex items-center gap-1 rounded-lg border px-2 py-1 md:py-1.5 text-[11px] md:text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${inputBg}`}
                 >
                   <Pause className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Pause</span>
@@ -991,7 +1043,11 @@ export function ControlDock({
             </div>
 
             {/* Swatches + LOD + Utility Actions */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div
+              className={`${
+                mobileTab === 'mix' ? 'flex' : 'hidden md:flex'
+              } flex-wrap items-center gap-1.5 md:gap-2`}
+            >
               <div className="flex items-center gap-2">
                 <label
                   className="flex items-center gap-1.5 text-xs font-medium cursor-pointer"
